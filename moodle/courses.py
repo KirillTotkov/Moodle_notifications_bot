@@ -2,14 +2,15 @@ import time
 from json import JSONDecodeError
 from pprint import pprint
 import asyncio
+
+import aiohttp
 from aiohttp import ClientSession
 
 from config import MOODLE_HOST, ADMIN_MOODLE_TOKEN, moodle_loger
 from db.models import Course
 
 
-
-async def get_user_courses(moodle_token: str) -> list:
+async def get_user_courses(moodle_token: str):
     """Get all courses from Moodle"""
     request_time = time.time()
     url = f'{MOODLE_HOST}/webservice/rest/server.php'
@@ -19,10 +20,15 @@ async def get_user_courses(moodle_token: str) -> list:
         'classification': 'all',
         'moodlewsrestformat': 'json',
     }
-    async with ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params, ssl=False) as response:
             data = await response.json()
+            if 'exception' in data:
+                raise Exception(data['message'], data.get('debuginfo'))
+
             courses = [Course(id=course['id'], name=course['fullname']) for course in data['courses']]
+            moodle_loger.info(f"Request to Moodle took {time.time() - request_time} seconds")
+            return courses
 
 
 async def main():

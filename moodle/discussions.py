@@ -2,11 +2,23 @@ import time
 from json import JSONDecodeError
 from pprint import pprint
 import asyncio
+
+import aiohttp
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
 from config import MOODLE_HOST, ADMIN_MOODLE_TOKEN
 from db.models import Discussion, Course
+
+
+async def get_new_discussions_from_courses(moodle_token: str, courses: list[Course], session: aiohttp.ClientSession) -> \
+        list[Discussion]:
+    """Get new discussions from Moodle"""
+    async_tasks = []
+    for course in courses:
+        async_tasks.append(get_new_discussions(moodle_token, course))
+    discussions = await asyncio.gather(*async_tasks)
+    return discussions
 
 
 async def get_new_discussions(moodle_token: str, course: Course) -> list[Discussion]:
@@ -27,12 +39,9 @@ async def get_discussions(moodle_token: str, course_id: int) -> list:
         'forumid': course_id - 1,
         'moodlewsrestformat': 'json',
     }
-    async with ClientSession() as session:
+    async with aiohttp.ClientSession() as session:
         async with session.get(url, params=params, ssl=False) as response:
-            try:
-                data = await response.json()
-            except JSONDecodeError:
-                data = await response.text()
+            data = await response.json()
             if 'exception' in data:
                 return []
                 # raise Exception(data['message'], data['debuginfo'])
