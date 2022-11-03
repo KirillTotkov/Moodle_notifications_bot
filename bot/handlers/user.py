@@ -9,7 +9,8 @@ from aiohttp import ClientSession
 
 from bot.create_bot import bot
 from config import MOODLE_HOST, bot_loger
-from db.models import User, Task
+from db.models import User, Task, Discussion
+from moodle.courses import get_new_courses
 
 
 class UserState(StatesGroup):
@@ -17,24 +18,30 @@ class UserState(StatesGroup):
     password = State()
 
 
-async def send_tasks_to_user(user: User, tasks: list[Task]):
+async def send_task_to_user(user_id: int, task: Task):
+    message_text = "hello"
+    try:
+        await bot.send_message(user_id, message_text)
+    except RetryAfter as e:
+        print(e)
+        bot_loger.error(f"Retry after {e.timeout}")
+        await asyncio.sleep(e.timeout * 2)
+        await bot.send_message(user_id, message_text)
+
+
+async def send_tasks_to_user(user_id: int, tasks: list):
     send_tasks_time = time.time()
-    # async_task = []
-    # for task in tasks:
-    #     async_task.append(bot.send_message(user.id, task.name))
-    #
-    # await asyncio.gather(*async_task)
 
     for task in tasks:
         try:
-            await bot.send_message(user.id, task.name)
-            await asyncio.sleep(0.1)
-        except RetryAfter:
-            print("RetryAfter")
-            await asyncio.sleep(10)
-            await bot.send_message(user.id, task.name)
+            await bot.send_message(user_id, str(task), parse_mode='HTML')
+        except RetryAfter as e:
+            print(e)
+            bot_loger.error(f"Retry after {e.timeout}")
+            await asyncio.sleep(e.timeout * 2)
+            await bot.send_message(user_id, task.name)
 
-    bot_loger.info(f"Send tasks to user {user.id} time: {time.time() - send_tasks_time}")
+    bot_loger.info(f"Send tasks to user {user_id} time: {time.time() - send_tasks_time}")
 
 
 def check_user_registered(func):
@@ -114,10 +121,14 @@ async def password_handler(message: types.Message, state: FSMContext):
         username=message['from']['username'],
         first_name=message['from']['first_name'],
         moodle_token=moodle_token,
+        courses=[]
     )
 
     "добавляем пользователя в БД"
-    await user.create()
+    await user.save()
+    "добавляем курсы пользователя в БД"
+    user_courses = await get_new_courses(user)
+    await user.add_courses(user_courses)
 
     await message.answer("Вам будут приходить сообщения о новых заданиях")
 

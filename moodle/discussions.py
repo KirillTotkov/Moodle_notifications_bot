@@ -11,32 +11,22 @@ from config import MOODLE_HOST, ADMIN_MOODLE_TOKEN
 from db.models import Discussion, Course
 
 
-async def get_new_discussions_from_courses(moodle_token: str, courses: list[Course], session: aiohttp.ClientSession) -> \
-        list[Discussion]:
-    """Get new discussions from Moodle"""
-    async_tasks = []
-    for course in courses:
-        async_tasks.append(get_new_discussions(moodle_token, course))
-    discussions = await asyncio.gather(*async_tasks)
-    return discussions
-
-
 async def get_new_discussions(moodle_token: str, course: Course) -> list[Discussion]:
     """Get new discussions from Moodle"""
-    discussions_from_moodle = await get_discussions(moodle_token, course.id)
-    discussions_from_db = course.discussions
+    discussions_from_moodle = await get_discussions(moodle_token, course)
+    discussions_from_db = []
     new_discussions = set(discussions_from_moodle) ^ set(discussions_from_db)
 
     return list(new_discussions)
 
 
-async def get_discussions(moodle_token: str, course_id: int) -> list:
+async def get_discussions(moodle_token: str, course: Course) -> list:
     """Get all discussions from Moodle"""
     url = f'{MOODLE_HOST}/webservice/rest/server.php'
     params = {
         'wstoken': moodle_token,
         'wsfunction': 'mod_forum_get_forum_discussions_paginated',
-        'forumid': course_id - 1,
+        'forumid': course.id - 1,
         'moodlewsrestformat': 'json',
     }
     async with aiohttp.ClientSession() as session:
@@ -45,16 +35,23 @@ async def get_discussions(moodle_token: str, course_id: int) -> list:
             if 'exception' in data:
                 return []
                 # raise Exception(data['message'], data['debuginfo'])
-            discussions = await parse_discussions(data)
+            discussions = await parse_discussions(data, course)
             return discussions
 
 
-async def parse_discussions(data: dict) -> list:
+async def parse_discussions(data: dict, course: Course) -> list:
     discussions = []
     for discussion in data['discussions']:
-        discussions.append(Discussion(id=discussion['id'], name=discussion['name'],
-                                      message=await parse_message(discussion['message']),
-                                      url=f"{MOODLE_HOST}/mod/forum/discuss.php?d={discussion['id']}"))
+        discussions.append(
+            Discussion(
+                id=discussion['id'],
+                name=discussion['name'],
+                message=await parse_message(discussion['message']),
+                url=f"{MOODLE_HOST}/mod/forum/discuss.php?d={discussion['id']}",
+                course_id=course.id,
+                course=course,
+            )
+        )
     return discussions
 
 
