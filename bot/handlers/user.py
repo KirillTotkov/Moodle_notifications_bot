@@ -1,32 +1,22 @@
 import asyncio
 import time
+from aiohttp import ClientSession
 
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.utils.exceptions import RetryAfter
-from aiohttp import ClientSession
+
 
 from bot.create_bot import bot
 from config import MOODLE_HOST, bot_loger
-from db.models import User, Task, Discussion
+from db.models import User
 from moodle.courses import get_new_courses
 
 
 class UserState(StatesGroup):
     login = State()
     password = State()
-
-
-async def send_task_to_user(user_id: int, task: Task):
-    message_text = "hello"
-    try:
-        await bot.send_message(user_id, message_text)
-    except RetryAfter as e:
-        print(e)
-        bot_loger.error(f"Retry after {e.timeout}")
-        await asyncio.sleep(e.timeout * 2)
-        await bot.send_message(user_id, message_text)
 
 
 async def send_tasks_to_user(user_id: int, tasks: list):
@@ -65,8 +55,11 @@ async def show_user_courses(message: types.Message):
         await message.answer('У вас нет курсов')
         return
 
+    courses_text = ''
     for num, course in enumerate(courses):
-        await message.answer(f'{num + 1}⃣ {course.name}\n')
+        courses_text += f"{num + 1}⃣  {course.name} \n"
+
+    await message.answer(courses_text)
 
 
 async def get_moodle_token(login: str, password: str) -> str:
@@ -140,4 +133,4 @@ async def register_handlers(dp):
     dp.register_message_handler(cancel_handler, commands=["cancel"], state="*")
     dp.register_message_handler(login_handler, state=UserState.login)
     dp.register_message_handler(password_handler, state=UserState.password)
-    dp.register_message_handler(show_user_courses, commands=["show_my_courses"])
+    dp.register_message_handler(show_user_courses, commands=["show_courses"])

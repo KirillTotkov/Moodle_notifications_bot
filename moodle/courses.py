@@ -1,23 +1,18 @@
 import time
-from json import JSONDecodeError
-from pprint import pprint
-import asyncio
+from typing import Set, Any
 
-import aiohttp
 from aiohttp import ClientSession
 
-from config import MOODLE_HOST, ADMIN_MOODLE_TOKEN, moodle_loger
+from config import MOODLE_HOST, moodle_loger
 from db.models import Course, User
 
 
-async def get_new_courses(user: User) -> list:
+async def get_new_courses(user: User) -> set[Course | Any]:
     """Get new courses from Moodle"""
     async with ClientSession() as session:
         course_from_moodle = await get_user_courses(user.moodle_token, session)
         course_from_db = user.courses
-        # print(f'{course_from_db= }')
         new_courses = set(course_from_moodle) ^ set(course_from_db)
-        # print(f'{new_courses=}')
         return new_courses
 
 
@@ -39,14 +34,3 @@ async def get_user_courses(moodle_token: str, session: ClientSession) -> list:
         courses = [Course(id=course['id'], name=course['fullname']) for course in data['courses']]
         moodle_loger.info(f"Request to Moodle took {time.time() - request_time} seconds")
         return courses
-
-
-async def main():
-    start = time.time()
-
-    courses = await get_user_courses('e37848688ca30f5d49893f42ef159086')
-    end = time.time()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

@@ -1,20 +1,14 @@
-import time
-from json import JSONDecodeError
-from pprint import pprint
-import asyncio
-
 import aiohttp
-from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
-from config import MOODLE_HOST, ADMIN_MOODLE_TOKEN
+from config import MOODLE_HOST
 from db.models import Discussion, Course
 
 
 async def get_new_discussions(moodle_token: str, course: Course) -> list[Discussion]:
     """Get new discussions from Moodle"""
     discussions_from_moodle = await get_discussions(moodle_token, course)
-    discussions_from_db = []
+    discussions_from_db = await course.get_discussions()
     new_discussions = set(discussions_from_moodle) ^ set(discussions_from_db)
 
     return list(new_discussions)
@@ -35,18 +29,18 @@ async def get_discussions(moodle_token: str, course: Course) -> list:
             if 'exception' in data:
                 return []
                 # raise Exception(data['message'], data['debuginfo'])
-            discussions = await parse_discussions(data, course)
+            discussions = await _parse_discussions(data, course)
             return discussions
 
 
-async def parse_discussions(data: dict, course: Course) -> list:
+async def _parse_discussions(data: dict, course: Course) -> list:
     discussions = []
     for discussion in data['discussions']:
         discussions.append(
             Discussion(
                 id=discussion['id'],
                 name=discussion['name'],
-                message=await parse_message(discussion['message']),
+                message=await _parse_message(discussion['message']),
                 url=f"{MOODLE_HOST}/mod/forum/discuss.php?d={discussion['id']}",
                 course_id=course.id,
                 course=course,
@@ -55,20 +49,6 @@ async def parse_discussions(data: dict, course: Course) -> list:
     return discussions
 
 
-async def parse_message(message: str) -> str:
+async def _parse_message(message: str) -> str:
     soup = BeautifulSoup(message, 'html.parser')
     return soup.get_text('\n')
-
-
-async def main():
-    token = 'e37848688ca30f5d49893f42ef159086'
-
-    start = time.time()
-    discussions = await get_discussions(token, 2)
-    end = time.time()
-    print(f"Time taken: {end - start}")
-    pprint(discussions)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

@@ -80,6 +80,18 @@ class Course(BaseModel):
     tasks = relationship('Task', back_populates='course')
     discussions = relationship('Discussion', back_populates='course')
 
+    async def get_tasks(self):
+        async with async_session() as session:
+            query = select(Task).filter_by(course_id=self.id)
+            result = await session.execute(query)
+            return result.scalars().all()
+
+    async def get_discussions(self):
+        async with async_session() as session:
+            query = select(Discussion).filter_by(course_id=self.id)
+            result = await session.execute(query)
+            return result.scalars().all()
+
     def __repr__(self):
         return f'<{self.__class__.__name__} id={self.id} name={self.name}>'
 
@@ -147,9 +159,9 @@ class Task(BaseModel):
     name = Column(String(255), nullable=False)
     course_id = Column(Integer, ForeignKey('course.id'), nullable=False)
     type = Column(String(255), nullable=False)
-    url = Column(String(255), nullable=False)
-    description = Column(String(255), nullable=False)
-    hyperlink = Column(String(255), nullable=False)
+    url = Column(String(255), nullable=True)
+    description = Column(String(255), nullable=True)
+    hyperlink = Column(String(255), nullable=True)
 
     course = relationship('Course', back_populates='tasks')
 
