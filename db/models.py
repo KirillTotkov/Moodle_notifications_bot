@@ -61,7 +61,12 @@ class BaseModel(Base):
     async def create(self):
         async with async_session() as session:
             session.add(self)
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError as e:
+                await session.rollback()
+                db_loger.error(e)
+                raise e
 
     async def update(self, **kwargs):
         for key, value in kwargs.items():
@@ -92,6 +97,9 @@ class Course(BaseModel):
             result = await session.execute(query)
             return result.scalars().all()
 
+    def __str__(self):
+        return f'Новый курс: <b>{self.name}</b>'
+
     def __repr__(self):
         return f'<{self.__class__.__name__} id={self.id} name={self.name}>'
 
@@ -103,7 +111,7 @@ class User(BaseModel):
     first_name = Column(String(255), nullable=False)
     moodle_token = Column(String(255), nullable=False)
 
-    courses = relationship('Course', secondary=Users_Courses, backref='users')
+    courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='subquery')
 
     async def add_courses(self, courses):
         for course in courses:
@@ -132,6 +140,7 @@ class User(BaseModel):
             except IntegrityError as e:
                 await session.rollback()
                 db_loger.error(e)
+                print(e)
 
     async def remove_course(self, course):
         if course in self.courses:

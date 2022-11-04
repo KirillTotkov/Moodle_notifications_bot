@@ -2,11 +2,10 @@ import asyncio
 import time
 from aiohttp import ClientSession
 
-from aiogram import types
+from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.utils.exceptions import RetryAfter
-
 
 from bot.create_bot import bot
 from config import MOODLE_HOST, bot_loger
@@ -57,7 +56,7 @@ async def show_user_courses(message: types.Message):
 
     courses_text = ''
     for num, course in enumerate(courses):
-        courses_text += f"{num + 1}⃣  {course.name} \n"
+        courses_text += f"{num + 1}⃣ {course.name} \n"
 
     await message.answer(courses_text)
 
@@ -83,10 +82,11 @@ async def start_handler(message: types.Message):
 
     user = await User.get_or_none(id=message.from_user.id)
     if user:
-        await message.answer("Вы уже зарегистрированы. Напишите /show_my_courses")
+        await message.answer("Вы уже зарегистрированы. Напишите /show_courses")
         return
 
-    await message.answer("Для начала работы, введите логин и пароль от Moodle")
+    await message.answer("Для начала работы, введите логин и пароль от Moodle. \n"
+                         "Для отмены введите /cancel")
     await message.answer("Логин:")
 
     await UserState.login.set()
@@ -128,7 +128,7 @@ async def password_handler(message: types.Message, state: FSMContext):
     await state.finish()
 
 
-async def register_handlers(dp):
+async def register_handlers(dp: Dispatcher):
     dp.register_message_handler(start_handler, commands=["start"], state="*")
     dp.register_message_handler(cancel_handler, commands=["cancel"], state="*")
     dp.register_message_handler(login_handler, state=UserState.login)

@@ -1,5 +1,4 @@
 import time
-from typing import Set, Any
 
 from aiohttp import ClientSession
 
@@ -7,16 +6,16 @@ from config import MOODLE_HOST, moodle_loger
 from db.models import Course, User
 
 
-async def get_new_courses(user: User) -> set[Course | Any]:
+async def get_new_courses(user: User) -> list[Course]:
     """Get new courses from Moodle"""
     async with ClientSession() as session:
         course_from_moodle = await get_user_courses(user.moodle_token, session)
-        course_from_db = user.courses
+        course_from_db = await user.get_courses()
         new_courses = set(course_from_moodle) ^ set(course_from_db)
-        return new_courses
+        return list(new_courses)
 
 
-async def get_user_courses(moodle_token: str, session: ClientSession) -> list:
+async def get_user_courses(moodle_token: str, session: ClientSession) -> list[Course]:
     """Get all courses from Moodle"""
     request_time = time.time()
     url = f'{MOODLE_HOST}/webservice/rest/server.php'
