@@ -53,6 +53,7 @@ async def show_job(message: types.Message):
 @check_admin
 async def change_time(call: types.CallbackQuery):
     await call.message.answer('Введите новое время в секундах')
+    await call.answer()
     await Admin.job_time.set()
 
 

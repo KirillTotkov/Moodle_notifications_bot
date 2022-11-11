@@ -6,34 +6,29 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# MOODLE_HOST = os.getenv("MOODLE_HOST")
-MOODLE_HOST = os.getenv("TEST_MOODLE_HOST")
+MOODLE_HOST = os.getenv("MOODLE_HOST")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BOT_ADMIN_ID = int(os.getenv("BOT_ADMIN_ID"))
-# ADMIN_MOODLE_TOKEN = os.getenv("ADMIN_MOODLE_TOKEN")
-ADMIN_MOODLE_TOKEN = os.getenv("TEST_ADMIN_MOODLE_TOKEN")
-DATABASE_URL = os.getenv("DATABASE_URL_SQLITE")
+DATABASE_URL = os.getenv("DATABASE_URL_POSTGRES")
 
-token = 'e37848688ca30f5d49893f42ef159086'
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+def get_logger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(logging.FileHandler(f'../logs/{name}.log', encoding='utf-8'))
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger.handlers[0].setFormatter(formatter)
+    return logger
 
-bot_loger = log
-bot_loger.setLevel(logging.INFO)
-bot_loger.addHandler(logging.FileHandler('./../logs/bot.log', encoding='utf-8'))
-bot_loger.handlers[0].setFormatter(formatter)
 
-moodle_loger = logging.getLogger('moodle')
-moodle_loger.setLevel(logging.INFO)
-moodle_loger.addHandler(logging.FileHandler('../logs/moodle.log', encoding='utf-8'))
-moodle_loger.handlers[0].setFormatter(formatter)
+bot_loger = get_logger('bot')
+moodle_loger = get_logger('moodle')
+scheduler_loger = get_logger('scheduler')
+db_loger = get_logger('db')
 
-scheduler_loger = logging.getLogger('apscheduler.scheduler')
-scheduler_loger.setLevel(logging.INFO)
-scheduler_loger.addHandler(logging.FileHandler('../logs/scheduler.log', encoding='utf-8'))
-scheduler_loger.handlers[0].setFormatter(formatter)
-
-db_loger = logging.getLogger('sqlalchemy.engine')
-db_loger.setLevel(logging.INFO)
-db_loger.addHandler(logging.FileHandler('../logs/db.log', encoding='utf-8'))
-db_loger.handlers[0].setFormatter(formatter)
+headers = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 '
+                  'Safari/537.36 '
+}

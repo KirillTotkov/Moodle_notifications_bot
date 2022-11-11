@@ -1,7 +1,7 @@
 from sqlite3 import IntegrityError
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint, TEXT
+from sqlalchemy.orm import relationship
 from sqlalchemy.future import select
 
 from db.base import Base, async_session
@@ -35,30 +35,13 @@ class BaseModel(Base):
             return result.scalars().first()
 
     @classmethod
-    async def get_or_create(cls, **kwargs):
-        obj = await cls.get_or_none(**kwargs)
-        if obj:
-            return obj, False
-        obj = cls(**kwargs)
-        await obj.create()
-        return obj, True
-
-    @classmethod
-    async def get(cls, **kwargs):
-        async with async_session() as session:
-            obj = await session.get(cls, **kwargs)
-            if not obj:
-                raise ValueError(f'{cls.__name__} not found')
-            return obj
-
-    @classmethod
     async def get_all(cls):
         async with async_session() as session:
             query = select(cls)
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def create(self):
+    async def save(self):
         async with async_session() as session:
             session.add(self)
             try:
@@ -66,7 +49,7 @@ class BaseModel(Base):
             except IntegrityError as e:
                 await session.rollback()
                 db_loger.error(e)
-                raise e
+                print(e)
 
     async def update(self, **kwargs):
         for key, value in kwargs.items():
@@ -80,7 +63,8 @@ class BaseModel(Base):
 class Course(BaseModel):
     __tablename__ = 'course'
 
-    name = Column(String(255), nullable=False)
+    name = Column(String, nullable=False)
+    forum_id = Column(Integer, nullable=True)
 
     tasks = relationship('Task', back_populates='course')
     discussions = relationship('Discussion', back_populates='course')
@@ -107,9 +91,9 @@ class Course(BaseModel):
 class User(BaseModel):
     __tablename__ = 'user'
 
-    username = Column(String(255), nullable=False)
-    first_name = Column(String(255), nullable=False)
-    moodle_token = Column(String(255), nullable=False)
+    username = Column(String, nullable=False)
+    first_name = Column(String, nullable=False)
+    moodle_token = Column(String, nullable=False)
 
     courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='subquery')
 
@@ -117,30 +101,13 @@ class User(BaseModel):
         for course in courses:
             "Проверить существует ли курс"
             if not await Course.get_or_none(id=course.id):
-                await course.create()
+                await course.save()
 
             """Если курс не привязан к пользователю, то привязываем"""
             if course not in self.courses:
                 db_course = await course.get_or_none(id=course.id)
                 self.courses.append(db_course)
         await self.save()
-
-    async def get_course(self, course_id):
-        async with async_session() as session:
-            query = select(Course).join(Users_Courses, Users_Courses.c.course_id == Course.id).filter(
-                Users_Courses.c.user_id == self.id, Course.id == course_id)
-            result = await session.execute(query)
-            return result.scalars().first()
-
-    async def save(self):
-        async with async_session() as session:
-            session.add(self)
-            try:
-                await session.commit()
-            except IntegrityError as e:
-                await session.rollback()
-                db_loger.error(e)
-                print(e)
 
     async def remove_course(self, course):
         if course in self.courses:
@@ -155,9 +122,6 @@ class User(BaseModel):
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def send_message(self, text):
-        return self.bot.send_message(self.id, text)
-
     def __repr__(self):
         return f'<{self.__class__.__name__} id={self.id} username={self.username}>'
 
@@ -165,12 +129,12 @@ class User(BaseModel):
 class Task(BaseModel):
     __tablename__ = 'task'
 
-    name = Column(String(255), nullable=False)
+    name = Column(String, nullable=False)
     course_id = Column(Integer, ForeignKey('course.id'), nullable=False)
-    type = Column(String(255), nullable=False)
-    url = Column(String(255), nullable=True)
-    description = Column(String(255), nullable=True)
-    hyperlink = Column(String(255), nullable=True)
+    type = Column(String, nullable=False)
+    url = Column(String, nullable=True)
+    description = Column(TEXT, nullable=True)
+    hyperlink = Column(String, nullable=True)
 
     course = relationship('Course', back_populates='tasks')
 
@@ -179,11 +143,14 @@ class Task(BaseModel):
                f'<b>Тип</b>: {self.type}\n' \
                f'<b>Название</b>: {self.name}\n'
 
-        if self.type != 'Пояснение':
+        if self.type != 'Пояснения':
             text += f'<b>Ссылка</b>: {self.url}\n'
 
         if self.description:
-            text += f'<b>Описание</b>: {self.description}\n'
+            text += f'<b>Описание</b>:\n {self.description}\n'
+
+        if self.type == 'Файлы':
+            return text
 
         if self.hyperlink and self.type != 'Папки' and self.type != 'Страницы':
             text += f'<b>Гиперссылка</b>: {self.hyperlink}\n'
@@ -197,10 +164,10 @@ class Task(BaseModel):
 class Discussion(BaseModel):
     __tablename__ = 'discussion'
 
-    name = Column(String(255), nullable=False)
+    name = Column(String, nullable=False)
     course_id = Column(Integer, ForeignKey('course.id'), nullable=False)
-    url = Column(String(255), nullable=False)
-    message = Column(String(255), nullable=False)
+    url = Column(String, nullable=False)
+    message = Column(String, nullable=False)
 
     course = relationship('Course', back_populates='discussions')
 

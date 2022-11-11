@@ -1,18 +1,17 @@
 from io import BytesIO
-import asyncio
 from aiohttp import ClientSession
+from bs4 import BeautifulSoup
 
-from config import MOODLE_HOST
+from config import MOODLE_HOST, headers
 from moodle.courses import Course
 from db.models import Task
 
 
-async def _get_file(url: str) -> BytesIO:
+async def get_file(url: str) -> BytesIO:
     async with ClientSession() as session:
         async with session.get(url) as response:
             data = await response.read()
-            file_name = response.headers['Content-Disposition'].split('=')[1].replace('"', '') \
-                .encode('latin-1').decode('utf-8')
+            file_name = response.headers['Content-Disposition'].split('filename=')[1]
             file = BytesIO(data)
             file.name = file_name
             return file
@@ -36,16 +35,16 @@ async def get_course_tasks(moodle_token: str, course: Course) -> list:
         'moodlewsrestformat': 'json',
     }
     async with ClientSession() as session:
-        async with session.get(url, params=params, ssl=False) as response:
+        async with session.get(url, params=params, headers=headers) as response:
             data = await response.json()
             if 'exception' in data:
                 return []
 
-            tasks = await parse_tasks(data, course)
+            tasks = await _parse_tasks(data, course)
             return tasks
 
 
-async def parse_tasks(data: dict, course) -> list[Task]:
+async def _parse_tasks(data: dict, course: Course) -> list[Task]:
     tasks = []
     for section in data:
         for module in section['modules']:
@@ -54,10 +53,21 @@ async def parse_tasks(data: dict, course) -> list[Task]:
                     id=module['id'],
                     type=module['modplural'],
                     name=module['name'],
-                    description=module.get('description'),
+                    description=await _parse_task_description(module),
+                    hyperlink=await _parse_task_hyperlink(module),
                     url=module.get('url'),
-                    course_id=course.id,
                     course=course,
                 )
             )
     return tasks[1:]
+
+
+async def _parse_task_hyperlink(task: dict) -> str:
+    if "contents" in task and task["contents"]:
+        return task['contents'][0]['fileurl'].replace('forcedownload=1', '')
+
+
+async def _parse_task_description(task: dict) -> str:
+    if "description" in task:
+        soup = BeautifulSoup(task['description'], 'html.parser')
+        return soup.get_text(separator='\n')

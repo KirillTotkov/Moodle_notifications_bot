@@ -1,9 +1,8 @@
-import time
-
 from aiohttp import ClientSession
 
-from config import MOODLE_HOST, moodle_loger
+from config import MOODLE_HOST, headers
 from db.models import Course, User
+from moodle.discussions import get_forum_id_by_course
 
 
 async def get_new_courses(user: User) -> list[Course]:
@@ -17,7 +16,6 @@ async def get_new_courses(user: User) -> list[Course]:
 
 async def get_user_courses(moodle_token: str, session: ClientSession) -> list[Course]:
     """Get all courses from Moodle"""
-    request_time = time.time()
     url = f'{MOODLE_HOST}/webservice/rest/server.php'
     params = {
         'wstoken': moodle_token,
@@ -25,11 +23,17 @@ async def get_user_courses(moodle_token: str, session: ClientSession) -> list[Co
         'classification': 'all',
         'moodlewsrestformat': 'json',
     }
-    async with session.get(url, params=params, ssl=False) as response:
+    async with session.get(url, params=params, headers=headers) as response:
         data = await response.json()
         if 'exception' in data:
             raise Exception(data['message'], data.get('debuginfo'))
 
-        courses = [Course(id=course['id'], name=course['fullname']) for course in data['courses']]
-        moodle_loger.info(f"Request to Moodle took {time.time() - request_time} seconds")
+        courses = [
+            Course(
+                id=course['id'],
+                name=course['fullname'].split(', гр.')[0],
+                forum_id=await get_forum_id_by_course(moodle_token, course['id']),
+            ) for course in data['courses']
+        ]
+
         return courses
