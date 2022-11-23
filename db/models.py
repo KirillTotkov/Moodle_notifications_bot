@@ -5,8 +5,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.future import select
 from sqlalchemy.dialects.postgresql import BIGINT
 
-from db.session import Base, async_session
 from config import db_loger
+from db.session import Base, async_session
 
 Users_Courses = Table(
     'users_courses',

@@ -1,6 +1,9 @@
 import logging
 import os
-from aiogram.dispatcher.dispatcher import log
+from aiogram import Bot, Dispatcher
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from aiogram.dispatcher.dispatcher import log as bot_logger
 
 from dotenv import load_dotenv
 
@@ -13,20 +16,32 @@ DATABASE_URL = f'postgresql+asyncpg://{os.getenv("POSTGRES_USER")}:' \
                f'{os.getenv("POSTGRES_PASSWORD")}@{os.getenv("POSTGRES_HOST")}/' \
                f'{os.getenv("POSTGRES_DB")}'
 
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(bot, storage=MemoryStorage())
+scheduler = AsyncIOScheduler()
 
-def get_logger(name):
-    logger = logging.getLogger(name)
+
+def set_settings_logger(logger, name):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    log_dir = os.path.join(base_dir, 'logs')
+    if not os.path.exists(log_dir):
+        os.mkdir(log_dir)
+    logger.addHandler(logging.FileHandler(os.path.join(log_dir, f'{name}.log')))
     logger.setLevel(logging.INFO)
-    logger.addHandler(logging.FileHandler(f'../logs/{name}.log', encoding='utf-8'))
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger.handlers[0].setFormatter(formatter)
-    return logger
 
 
-bot_loger = get_logger('bot')
-moodle_loger = get_logger('moodle')
-scheduler_loger = get_logger('scheduler')
-db_loger = get_logger('db')
+set_settings_logger(bot_logger, 'bot')
+
+moodle_loger = logging.getLogger('moodle')
+set_settings_logger(moodle_loger, 'moodle')
+
+scheduler_loger = logging.getLogger('apscheduler.scheduler')
+set_settings_logger(scheduler_loger, 'scheduler')
+
+db_loger = logging.getLogger('db')
+set_settings_logger(db_loger, 'db')
 
 headers = {
     'Content-Type': 'application/x-www-form-urlencoded',

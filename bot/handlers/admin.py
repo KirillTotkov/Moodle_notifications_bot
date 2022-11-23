@@ -4,8 +4,7 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, \
     InlineKeyboardMarkup, InlineKeyboardButton
 
-from bot.create_bot import scheduler
-from config import BOT_ADMIN_ID
+from config import BOT_ADMIN_ID, scheduler
 from db.models import User
 
 

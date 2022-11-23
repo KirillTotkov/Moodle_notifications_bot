@@ -7,8 +7,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.utils.exceptions import RetryAfter
 
-from bot.create_bot import bot
-from config import MOODLE_HOST, bot_loger, headers
+from config import MOODLE_HOST, headers, bot, bot_logger
 from db.models import User, Task
 from moodle.courses import get_new_courses
 from moodle.discussions import get_new_discussions
@@ -53,14 +52,14 @@ async def send_new_tasks_and_courses(user: User):
     try:
         await send_tasks_to_user(user.id, tasks, user.moodle_token)
     except RetryAfter as e:
-        bot_loger.error(f"Retry after {e.timeout}")
+        bot_logger.error(f"Retry after {e.timeout}")
         time.sleep(e.timeout * 2)
         await send_tasks_to_user(user.id, tasks, user.moodle_token)
 
     try:
         await send_tasks_to_user(user.id, new_courses, user.moodle_token)
     except RetryAfter as e:
-        bot_loger.error(f"Retry after {e.timeout}")
+        bot_logger.error(f"Retry after {e.timeout}")
         time.sleep(e.timeout * 2)
         await send_tasks_to_user(user.id, new_courses, user.moodle_token)
 
@@ -77,7 +76,7 @@ async def send_tasks_to_user(user_id: int, tasks: list, moodle_token: str) -> No
         else:
             await bot.send_message(user_id, str(task), parse_mode="HTML")
 
-    bot_loger.info(f'Отправка заданий пользователю {user_id} заняла {time.time() - send_tasks_time} секунд')
+    bot_logger.info(f'Отправка заданий пользователю {user_id} заняла {time.time() - send_tasks_time} секунд')
 
 
 def check_user_registered(func):
@@ -163,7 +162,7 @@ async def password_handler(message: types.Message, state: FSMContext):
         courses=[]
     )
 
-    bot_loger.info(f'Новый пользователь {user}')
+    bot_logger.info(f'Новый пользователь {user}')
 
     "добавляем пользователя в БД"
     await user.save()
@@ -180,7 +179,7 @@ async def password_handler(message: types.Message, state: FSMContext):
     await message.answer("Ваши курсы:")
     await show_user_courses(message)
 
-    bot_loger.info(f'Новый пользователь {user}')
+    bot_logger.info(f'Новый пользователь {user}')
 
 
 async def register_handlers(dp: Dispatcher):

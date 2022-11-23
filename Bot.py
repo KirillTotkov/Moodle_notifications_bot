@@ -2,12 +2,11 @@ import time
 
 from aiogram import executor
 
-from bot.create_bot import dp, scheduler
+from config import dp, scheduler, bot_logger, moodle_loger
 from bot.handlers import user as user_handlers
 from bot.handlers import admin as admin_handlers
 from db.models import User
 from bot.handlers.user import send_new_tasks_and_courses
-from config import moodle_loger
 
 
 @scheduler.scheduled_job('interval', seconds=1600, id='tasks')
@@ -36,11 +35,21 @@ async def main():
 
 async def on_startup(dispatcher):
     print('Запуск бота')
+    bot_logger.info("Запуск бота")
 
     scheduler.start()
     await user_handlers.register_handlers(dispatcher)
     await admin_handlers.register_handlers(dispatcher)
 
 
+async def on_shutdown(dispatcher):
+    print('Остановка бота')
+    bot_logger.info("Остановка бота")
+
+    scheduler.shutdown()
+    await dispatcher.storage.close()
+    await dispatcher.storage.wait_closed()
+
+
 if __name__ == '__main__':
-    executor.start_polling(dp, on_startup=on_startup)
+    executor.start_polling(dp, on_startup=on_startup, on_shutdown=on_shutdown)
