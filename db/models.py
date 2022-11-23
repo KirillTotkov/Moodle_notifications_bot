@@ -92,6 +92,7 @@ class User(BaseModel):
     __tablename__ = 'users'
 
     id = Column(BIGINT, primary_key=True, index=True)
+    username = Column(String, nullable=False)
     moodle_token = Column(String, nullable=False)
 
     courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='selectin')
@@ -122,7 +123,7 @@ class User(BaseModel):
             return result.scalars().all()
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} id={self.id}>'
+        return f'<{self.__class__.__name__} id={self.id}, username=@{self.username}>'
 
 
 class Task(BaseModel):

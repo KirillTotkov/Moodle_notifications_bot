@@ -1,4 +1,3 @@
-import asyncio
 import time
 
 from aiogram import executor
@@ -9,7 +8,6 @@ from bot.handlers import admin as admin_handlers
 from db.models import User
 from bot.handlers.user import send_new_tasks_and_courses
 from config import moodle_loger
-from db.session import init_db
 
 
 @scheduler.scheduled_job('interval', seconds=1600, id='tasks')

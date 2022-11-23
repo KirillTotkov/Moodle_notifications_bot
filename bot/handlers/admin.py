@@ -1,11 +1,12 @@
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardMarkup, \
-    InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, \
+    InlineKeyboardMarkup, InlineKeyboardButton
 
 from bot.create_bot import scheduler
 from config import BOT_ADMIN_ID
+from db.models import User
 
 
 class Admin(StatesGroup):
@@ -32,6 +33,15 @@ def check_admin(func):
         return await func(message)
 
     return wrapper
+
+
+@check_admin
+async def get_users(message: types.Message):
+    "Отправляет список пользователей. Если их больше 10, то отправляет по 10 пользователей"
+    users = await User.get_all()
+    await message.answer(f'Пользователей в базе: {len(users)}')
+    for i in range(0, len(users), 10):
+        await message.answer('\n'.join([f'@{user.username}' for user in users[i:i + 10]]))
 
 
 @check_admin
@@ -96,3 +106,4 @@ async def register_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(run_job, text='run_job', state='*')
     dp.register_callback_query_handler(pause_job, text='pause_job', state='*')
     dp.register_message_handler(back, text='Назад', state='*')
+    dp.register_message_handler(get_users, commands='users', state='*')

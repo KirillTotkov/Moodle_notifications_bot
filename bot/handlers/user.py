@@ -114,7 +114,7 @@ async def start_handler(message: types.Message):
 
     user = await User.get_or_none(id=message.from_user.id)
     if user:
-        await message.answer("Вы уже зарегистрированы. Напишите /show_courses")
+        await message.answer("Вы уже зарегистрированы")
         return
 
     await message.answer("Для начала работы, введите логин и пароль от Moodle. \n"
@@ -142,11 +142,12 @@ async def password_handler(message: types.Message, state: FSMContext):
         await UserState.login.set()
         return
     else:
-        await message.answer("Вам будут приходить сообщения о новых заданиях")
+        await message.answer("<b>Вам будут приходить сообщения о новых заданиях</b>", parse_mode="HTML")
         await state.finish()
 
     user = User(
         id=message.from_user.id,
+        username=message.from_user.username,
         moodle_token=moodle_token,
         courses=[]
     )
@@ -165,10 +166,16 @@ async def password_handler(message: types.Message, state: FSMContext):
     for task in tasks:
         await task.save()
 
+    await message.answer("Ваши курсы:")
+    await show_user_courses(message)
+
+    bot_loger.info(f'Новый пользователь {user}')
+
 
 async def register_handlers(dp: Dispatcher):
-    dp.register_message_handler(show_user_courses, commands=["show_courses"])
     dp.register_message_handler(start_handler, commands=["start"], state="*")
     dp.register_message_handler(cancel_handler, commands=["cancel"], state="*")
     dp.register_message_handler(login_handler, state=UserState.login)
     dp.register_message_handler(password_handler, state=UserState.password)
+    dp.register_message_handler(show_user_courses, commands=["show_courses"])
+
