@@ -16,6 +16,7 @@ class Admin(StatesGroup):
 class Keyboard:
     admin = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     admin.add(KeyboardButton('Посмотреть задачу'))
+    admin.add(KeyboardButton('Посмотреть пользователей'))
     admin.add(KeyboardButton('Назад'))
 
 
@@ -30,7 +31,7 @@ def check_admin(func):
     async def wrapper(message: types.Message):
         if message.from_user.id != BOT_ADMIN_ID:
             return None
-        return await func(message)
+        await func(message)
 
     return wrapper
 
@@ -60,7 +61,6 @@ async def show_job(message: types.Message):
     await message.answer(message_text, reply_markup=InlineKeyboard.admin, parse_mode='HTML')
 
 
-@check_admin
 async def change_time(call: types.CallbackQuery):
     await call.message.answer('Введите новое время в секундах')
     await call.answer()
@@ -69,13 +69,15 @@ async def change_time(call: types.CallbackQuery):
 
 async def change_time_set(message: types.Message, state: FSMContext):
     job = scheduler.get_jobs()[0]
-    try:
-        job_time = int(message.text)
-        job.reschedule(trigger='interval', seconds=job_time)
-        await message.answer('Период изменен', reply_markup=Keyboard.admin)
+    job_time = message.text
+    if not job_time.isdigit() or int(job_time) < 1:
+        await message.answer('Неверный формат времени')
         await state.finish()
-    except ValueError:
-        await message.answer('Неверный формат')
+        return
+
+    job.reschedule(trigger='interval', seconds=int(job_time))
+    await message.answer('Период изменен', reply_markup=Keyboard.admin)
+    await state.finish()
 
 
 async def run_job(call: types.CallbackQuery):
@@ -85,7 +87,6 @@ async def run_job(call: types.CallbackQuery):
     await call.answer()
 
 
-@check_admin
 async def pause_job(call: types.CallbackQuery):
     job = scheduler.get_jobs()[0]
     job.pause()
@@ -93,17 +94,16 @@ async def pause_job(call: types.CallbackQuery):
     await call.answer()
 
 
-@check_admin
 async def back(message: types.Message):
     await message.answer('Вы вышли из админ панели', reply_markup=ReplyKeyboardRemove())
 
 
 async def register_handlers(dp: Dispatcher):
-    dp.register_message_handler(admin, commands='admin', state='*')
-    dp.register_message_handler(show_job, text='Посмотреть задачу', state='*')
+    dp.register_message_handler(admin, commands='admin')
+    dp.register_message_handler(show_job, text='Посмотреть задачу')
     dp.register_callback_query_handler(change_time, text='change_time', state='*')
     dp.register_message_handler(change_time_set, state=Admin.job_time)
     dp.register_callback_query_handler(run_job, text='run_job', state='*')
     dp.register_callback_query_handler(pause_job, text='pause_job', state='*')
     dp.register_message_handler(back, text='Назад', state='*')
-    dp.register_message_handler(get_users, commands='users', state='*')
+    dp.register_message_handler(get_users, text='Посмотреть пользователей')

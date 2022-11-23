@@ -11,8 +11,8 @@ from config import db_loger
 Users_Courses = Table(
     'users_courses',
     Base.metadata,
-    Column('user_id', BIGINT, ForeignKey('users.id')),
-    Column('course_id', BIGINT, ForeignKey('courses.id')),
+    Column('user_id', BIGINT, ForeignKey('users.id', ondelete='CASCADE')),
+    Column('course_id', BIGINT, ForeignKey('courses.id', ondelete='CASCADE')),
     PrimaryKeyConstraint('user_id', 'course_id')
 )
 
@@ -56,7 +56,9 @@ class BaseModel(Base):
         await self.save()
 
     async def delete(self):
-        await self.update(deleted=True)
+        async with async_session() as session:
+            await session.delete(self)
+            await session.commit()
 
 
 class Course(BaseModel):
@@ -66,8 +68,8 @@ class Course(BaseModel):
     name = Column(String, nullable=False)
     forum_id = Column(Integer, nullable=True)
 
-    tasks = relationship('Task', back_populates='course')
-    discussions = relationship('Discussion', back_populates='course')
+    tasks = relationship('Task', back_populates='course', lazy='selectin', cascade='all, delete')
+    discussions = relationship('Discussion', back_populates='course', lazy='selectin', cascade='all, delete')
 
     async def get_tasks(self):
         async with async_session() as session:
@@ -95,7 +97,8 @@ class User(BaseModel):
     username = Column(String, nullable=False)
     moodle_token = Column(String, nullable=False)
 
-    courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='selectin')
+    courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='selectin',
+                           cascade='all, delete')
 
     async def add_courses(self, courses):
         for course in courses:
@@ -109,18 +112,19 @@ class User(BaseModel):
                 self.courses.append(db_course)
         await self.save()
 
-    async def remove_course(self, course):
-        if course in self.courses:
-            self.courses.remove(course)
-            return True
-        return False
+    async def remove_courses(self):
+        """Удаляем все курсы пользователя"""
+        self.courses = []
+        await self.save()
 
-    async def get_courses(self):
+        """Удаляем все курсы, которые не привязаны ни к одному пользователю"""
         async with async_session() as session:
-            query = select(Course).join(Users_Courses, Users_Courses.c.course_id == Course.id).filter(
-                Users_Courses.c.user_id == self.id)
+            query = select(Course).filter(~Course.users.any())
             result = await session.execute(query)
-            return result.scalars().all()
+            courses = result.scalars().all()
+            for course in courses:
+                await session.delete(course)
+            await session.commit()
 
     def __repr__(self):
         return f'<{self.__class__.__name__} id={self.id}, username=@{self.username}>'

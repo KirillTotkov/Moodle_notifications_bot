@@ -20,6 +20,17 @@ class UserState(StatesGroup):
     password = State()
 
 
+async def delete_user_handler(message: types.Message):
+    user = await User.get_or_none(id=message.from_user.id)
+    if not user:
+        await message.answer("Вы не зарегистрированы. Напишите /start")
+        return
+
+    await user.remove_courses()
+    await user.delete()
+    await message.answer("Вы успешно удалили свой аккаунт")
+
+
 async def get_user_tasks(user: User):
     "Получение заданий для каждого курса"
     async_tasks = []
@@ -85,7 +96,7 @@ def check_user_registered(func):
 async def show_user_courses(message: types.Message) -> None:
     user = await User.get_or_none(id=message.from_user.id)
 
-    courses = await user.get_courses()
+    courses = user.courses
     if not courses:
         await message.answer('У вас нет курсов')
     else:
@@ -178,4 +189,4 @@ async def register_handlers(dp: Dispatcher):
     dp.register_message_handler(login_handler, state=UserState.login)
     dp.register_message_handler(password_handler, state=UserState.password)
     dp.register_message_handler(show_user_courses, commands=["show_courses"])
-
+    dp.register_message_handler(delete_user_handler, commands=["delete_my"])
