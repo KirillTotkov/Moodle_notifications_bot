@@ -88,13 +88,12 @@ async def show_user_courses(message: types.Message) -> None:
     courses = await user.get_courses()
     if not courses:
         await message.answer('У вас нет курсов')
-        return
+    else:
+        courses_text = ''
+        for num, course in enumerate(courses):
+            courses_text += f"{num + 1}⃣ {course.name} \n"
 
-    courses_text = ''
-    for num, course in enumerate(courses):
-        courses_text += f"{num + 1}⃣ {course.name} \n"
-
-    await message.answer(courses_text)
+        await message.answer(courses_text)
 
 
 async def get_moodle_token(login: str, password: str) -> str:
@@ -138,14 +137,16 @@ async def password_handler(message: types.Message, state: FSMContext):
 
     moodle_token = await get_moodle_token(login, password)
     if not moodle_token:
-        await message.answer('Неверный логин или пароль, попробуйте заново.')
+        await message.answer("Неверный логин или пароль! \nПопробуйте еще раз")
+        await message.answer("Логин:")
         await UserState.login.set()
         return
+    else:
+        await message.answer("Вам будут приходить сообщения о новых заданиях")
+        await state.finish()
 
     user = User(
         id=message.from_user.id,
-        username=message['from']['username'],
-        first_name=message['from']['first_name'],
         moodle_token=moodle_token,
         courses=[]
     )
@@ -164,14 +165,10 @@ async def password_handler(message: types.Message, state: FSMContext):
     for task in tasks:
         await task.save()
 
-    await message.answer("Вам будут приходить сообщения о новых заданиях")
-
-    await state.finish()
-
 
 async def register_handlers(dp: Dispatcher):
+    dp.register_message_handler(show_user_courses, commands=["show_courses"])
     dp.register_message_handler(start_handler, commands=["start"], state="*")
     dp.register_message_handler(cancel_handler, commands=["cancel"], state="*")
     dp.register_message_handler(login_handler, state=UserState.login)
     dp.register_message_handler(password_handler, state=UserState.password)
-    dp.register_message_handler(show_user_courses, commands=["show_courses"])

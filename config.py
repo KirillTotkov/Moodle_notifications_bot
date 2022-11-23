@@ -9,7 +9,9 @@ load_dotenv()
 MOODLE_HOST = os.getenv("MOODLE_HOST")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BOT_ADMIN_ID = int(os.getenv("BOT_ADMIN_ID"))
-DATABASE_URL = os.getenv("DATABASE_URL_POSTGRES")
+DATABASE_URL = f'postgresql+asyncpg://{os.getenv("POSTGRES_USER")}:' \
+               f'{os.getenv("POSTGRES_PASSWORD")}@{os.getenv("POSTGRES_HOST")}/' \
+               f'{os.getenv("POSTGRES_DB")}'
 
 
 def get_logger(name):

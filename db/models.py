@@ -1,25 +1,24 @@
 from sqlite3 import IntegrityError
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint, TEXT
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.future import select
+from sqlalchemy.dialects.postgresql import BIGINT
 
-from db.base import Base, async_session
+from db.session import Base, async_session
 from config import db_loger
 
 Users_Courses = Table(
     'users_courses',
     Base.metadata,
-    Column('user_id', Integer, ForeignKey('user.id')),
-    Column('course_id', Integer, ForeignKey('course.id')),
+    Column('user_id', BIGINT, ForeignKey('users.id')),
+    Column('course_id', BIGINT, ForeignKey('courses.id')),
     PrimaryKeyConstraint('user_id', 'course_id')
 )
 
 
 class BaseModel(Base):
     __abstract__ = True
-
-    id = Column(Integer, primary_key=True, index=True)
 
     def __eq__(self, other):
         return self.id == other.id
@@ -61,8 +60,9 @@ class BaseModel(Base):
 
 
 class Course(BaseModel):
-    __tablename__ = 'course'
+    __tablename__ = 'courses'
 
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     forum_id = Column(Integer, nullable=True)
 
@@ -89,13 +89,12 @@ class Course(BaseModel):
 
 
 class User(BaseModel):
-    __tablename__ = 'user'
+    __tablename__ = 'users'
 
-    username = Column(String, nullable=False)
-    first_name = Column(String, nullable=False)
+    id = Column(BIGINT, primary_key=True, index=True)
     moodle_token = Column(String, nullable=False)
 
-    courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='subquery')
+    courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='selectin')
 
     async def add_courses(self, courses):
         for course in courses:
@@ -123,20 +122,21 @@ class User(BaseModel):
             return result.scalars().all()
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} id={self.id} username={self.username}>'
+        return f'<{self.__class__.__name__} id={self.id}>'
 
 
 class Task(BaseModel):
-    __tablename__ = 'task'
+    __tablename__ = 'tasks'
 
-    name = Column(String, nullable=False)
-    course_id = Column(Integer, ForeignKey('course.id'), nullable=False)
-    type = Column(String, nullable=False)
-    url = Column(String, nullable=True)
-    description = Column(TEXT, nullable=True)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    type = Column(String)
+    url = Column(String)
+    description = Column(Text, nullable=True)
     hyperlink = Column(String, nullable=True)
 
-    course = relationship('Course', back_populates='tasks')
+    course_id = Column(Integer, ForeignKey("courses.id"))
+    course = relationship("Course", back_populates="tasks")
 
     def __str__(self):
         text = f'<b>Курс</b>: {self.course.name}\n' \
@@ -162,19 +162,20 @@ class Task(BaseModel):
 
 
 class Discussion(BaseModel):
-    __tablename__ = 'discussion'
+    __tablename__ = 'discussions'
 
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    course_id = Column(Integer, ForeignKey('course.id'), nullable=False)
+    text = Column(Text, nullable=False)
     url = Column(String, nullable=False)
-    message = Column(String, nullable=False)
 
+    course_id = Column(Integer, ForeignKey('courses.id'), nullable=False)
     course = relationship('Course', back_populates='discussions')
 
     def __str__(self):
         return f'Новое обсуждение в курсе <b>{self.course.name}</b>:\n' \
                f"<a href='{self.url}'>{self.name}</a>\n\n" \
-               f"{self.message}"
+               f"{self.text}"
 
     def __repr__(self):
         return f'<{self.__class__.__name__} id={self.id} name={self.name}>'

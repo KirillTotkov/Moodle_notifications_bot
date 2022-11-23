@@ -6,10 +6,10 @@ from aiogram import executor
 from bot.create_bot import dp, scheduler
 from bot.handlers import user as user_handlers
 from bot.handlers import admin as admin_handlers
-from db.base import init_db
 from db.models import User
 from bot.handlers.user import send_new_tasks_and_courses
 from config import moodle_loger
+from db.session import init_db
 
 
 @scheduler.scheduled_job('interval', seconds=1600, id='tasks')
@@ -19,12 +19,12 @@ async def main():
     all_users = await User.get_all()
 
     "Получение заданий для всех пользователей и отправка уведомлений"
-    async_tasks = []
+    all_tasks = set()
     for user in all_users:
-        async_tasks.append(send_new_tasks_and_courses(user))
+        tasks = await send_new_tasks_and_courses(user)
+        all_tasks.update(tasks)
 
-    all_tasks = await asyncio.gather(*async_tasks)
-    all_tasks = {task for user_tasks in all_tasks for task in user_tasks}
+    print(all_tasks)
 
     "Добавление новых заданий и обсуждений в БД"
     for task_discussion in all_tasks:
@@ -39,7 +39,6 @@ async def main():
 async def on_startup(dispatcher):
     print('Запуск бота')
 
-    await init_db()
     scheduler.start()
     await user_handlers.register_handlers(dispatcher)
     await admin_handlers.register_handlers(dispatcher)

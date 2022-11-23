@@ -5,23 +5,6 @@ from config import MOODLE_HOST, headers
 from db.models import Discussion, Course
 
 
-async def get_forum_id_by_course(moodle_token: str, course_id: int) -> int:
-    """Get forum id by course id"""
-    url = f'{MOODLE_HOST}/webservice/rest/server.php'
-    params = {
-        'wstoken': moodle_token,
-        'wsfunction': 'mod_forum_get_forums_by_courses',
-        'courseids[0]': course_id,
-        'moodlewsrestformat': 'json',
-    }
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=headers) as response:
-            data = await response.json()
-            if 'exception' in data:
-                raise Exception(data['message'], data.get('debuginfo'), course_id)
-            return data[0]['id']
-
-
 async def get_new_discussions(moodle_token: str, course: Course) -> list[Discussion]:
     """Get new discussions from Moodle"""
     discussions_from_moodle = await get_discussions(moodle_token, course)
@@ -56,7 +39,7 @@ async def _parse_discussions(data: dict, course: Course) -> list:
             Discussion(
                 id=discussion['id'],
                 name=discussion['name'],
-                message=await _parse_message(discussion['message']),
+                text=await _parse_message(discussion['message']),
                 url=f"{MOODLE_HOST}mod/forum/discuss.php?d={discussion['discussion']}",
                 course_id=course.id,
                 course=course,

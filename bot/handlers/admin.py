@@ -62,7 +62,7 @@ async def change_time_set(message: types.Message, state: FSMContext):
     try:
         job_time = int(message.text)
         job.reschedule(trigger='interval', seconds=job_time)
-        await message.answer('Период изменен')
+        await message.answer('Период изменен', reply_markup=Keyboard.admin)
         await state.finish()
     except ValueError:
         await message.answer('Неверный формат')
