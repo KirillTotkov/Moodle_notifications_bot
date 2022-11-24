@@ -5,7 +5,7 @@ WORKDIR /app
 COPY ./requirements.txt /app/requirements.txt
 
 RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
-RUN apt update && apt install vim -y && apt install postgresql -y
+RUN apt update && apt install vim -y
 
 COPY . /app
 

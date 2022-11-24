@@ -4,8 +4,14 @@ services:
   db:
     image: postgres
     restart: always
+    environment:
+      PGDATA: "/var/lib/postgresql/data/pgdata"
     env_file:
       - .env
+    volumes:
+      - .:/var/lib/postgresql/data
+    networks:
+      - db
     ports:
       - "5432:5432"
 
@@ -20,5 +26,11 @@ services:
       resources:
         limits:
           cpus: '0.4'
+    networks:
+      - db
     depends_on:
       - db
+
+networks:
+  db:
+    driver: bridge
