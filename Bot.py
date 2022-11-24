@@ -1,6 +1,7 @@
 import time
 
 from aiogram import executor
+from aiogram.utils.exceptions import BotBlocked
 
 from config import dp, scheduler, bot_logger, moodle_loger
 from bot.handlers import user as user_handlers
@@ -18,8 +19,13 @@ async def main():
     "Получение заданий для всех пользователей и отправка уведомлений"
     all_tasks = set()
     for user in all_users:
-        tasks = await send_new_tasks_and_courses(user)
-        all_tasks.update(tasks)
+        try:
+            tasks = await send_new_tasks_and_courses(user)
+            all_tasks.update(tasks)
+        except BotBlocked:
+            bot_logger.info(f"Бот заблокирован пользователем {user}")
+            await user.remove_courses()
+            await user.delete()
 
     "Добавление новых заданий и обсуждений в БД"
     for task_discussion in all_tasks:

@@ -188,4 +188,4 @@ async def register_handlers(dp: Dispatcher):
     dp.register_message_handler(login_handler, state=UserState.login)
     dp.register_message_handler(password_handler, state=UserState.password)
     dp.register_message_handler(show_user_courses, commands=["show_courses"])
-    dp.register_message_handler(delete_user_handler, commands=["delete_my"])
+    dp.register_message_handler(delete_user_handler, commands=["delete_me"])

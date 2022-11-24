@@ -5,17 +5,19 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
     InlineKeyboardMarkup, InlineKeyboardButton
 
 from config import BOT_ADMIN_ID, scheduler
-from db.models import User
+from db.models import User, Course
 
 
 class Admin(StatesGroup):
     job_time = State()
+    delete_last_task = State()
 
 
 class Keyboard:
     admin = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     admin.add(KeyboardButton('Посмотреть задачу'))
     admin.add(KeyboardButton('Посмотреть пользователей'))
+    admin.add(KeyboardButton('Удалить последнее задание'))
     admin.add(KeyboardButton('Назад'))
 
 
@@ -33,6 +35,28 @@ def check_admin(func):
         await func(message)
 
     return wrapper
+
+
+@check_admin
+async def delete_last_task(message: types.Message):
+    """
+    Для тестирования отправки сообщений.
+    Удалить последнее задание курса
+    """
+    courses = await Course.get_all()
+    markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    for course in courses:
+        markup.add(KeyboardButton(course.name))
+    await message.answer('Выберите курс', reply_markup=markup)
+    await Admin.delete_last_task.set()
+
+
+async def delete_last_task_set(message: types.Message, state: FSMContext):
+    course = await Course.get_or_none(name=message.text)
+    await course.delete_last_task()
+    await message.answer(f'Последнее задание курса <b>{course.name}</b> удалено', reply_markup=Keyboard.admin,
+                         parse_mode='HTML')
+    await state.finish()
 
 
 @check_admin
@@ -106,3 +130,5 @@ async def register_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(pause_job, text='pause_job', state='*')
     dp.register_message_handler(back, text='Назад', state='*')
     dp.register_message_handler(get_users, text='Посмотреть пользователей')
+    dp.register_message_handler(delete_last_task, text='Удалить последнее задание')
+    dp.register_message_handler(delete_last_task_set, state=Admin.delete_last_task)

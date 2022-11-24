@@ -77,6 +77,15 @@ class Course(BaseModel):
             result = await session.execute(query)
             return result.scalars().all()
 
+    async def delete_last_task(self):
+        async with async_session() as session:
+            query = select(Task).filter_by(course_id=self.id).order_by(Task.id.desc()).limit(1)
+            result = await session.execute(query)
+            task = result.scalars().first()
+            if task:
+                await session.delete(task)
+                await session.commit()
+
     def __str__(self):
         return f'Новый курс: <b>{self.name}</b>'
 
@@ -135,7 +144,7 @@ class Task(BaseModel):
     hyperlink = Column(String, nullable=True)
 
     course_id = Column(Integer, ForeignKey("courses.id"))
-    course = relationship("Course", back_populates="tasks")
+    course = relationship("Course", back_populates="tasks", lazy='selectin')
 
     def __str__(self):
         text = f'<b>Курс</b>: {self.course.name}\n' \

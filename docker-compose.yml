@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  postgres:
+  db:
     image: postgres
     restart: always
     env_file:
@@ -12,6 +12,8 @@ services:
   bot:
     build: .
     restart: always
+    environment:
+      - TZ=Europe/Moscow
     env_file:
       - .env
     deploy:
@@ -19,4 +21,4 @@ services:
         limits:
           cpus: '0.4'
     depends_on:
-      - postgres
+      - db
