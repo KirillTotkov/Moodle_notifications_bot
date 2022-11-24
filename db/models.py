@@ -1,9 +1,8 @@
 from sqlite3 import IntegrityError
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint, Text, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.future import select
-from sqlalchemy.dialects.postgresql import BIGINT
 
 from config import db_loger
 from db.session import Base, async_session
@@ -11,8 +10,8 @@ from db.session import Base, async_session
 Users_Courses = Table(
     'users_courses',
     Base.metadata,
-    Column('user_id', BIGINT, ForeignKey('users.id', ondelete='CASCADE')),
-    Column('course_id', BIGINT, ForeignKey('courses.id', ondelete='CASCADE')),
+    Column('user_id', Integer, ForeignKey('users.id', ondelete='CASCADE')),
+    Column('course_id', BigInteger, ForeignKey('courses.id', ondelete='CASCADE')),
     PrimaryKeyConstraint('user_id', 'course_id')
 )
 
@@ -50,11 +49,6 @@ class BaseModel(Base):
                 db_loger.error(e)
                 print(e)
 
-    async def update(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        await self.save()
-
     async def delete(self):
         async with async_session() as session:
             await session.delete(self)
@@ -65,11 +59,11 @@ class Course(BaseModel):
     __tablename__ = 'courses'
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String)
     forum_id = Column(Integer, nullable=True)
 
-    tasks = relationship('Task', back_populates='course', lazy='selectin', cascade='all, delete')
-    discussions = relationship('Discussion', back_populates='course', lazy='selectin', cascade='all, delete')
+    tasks = relationship('Task', back_populates='course', cascade='all, delete')
+    discussions = relationship('Discussion', back_populates='course', cascade='all, delete')
 
     async def get_tasks(self):
         async with async_session() as session:
@@ -93,9 +87,9 @@ class Course(BaseModel):
 class User(BaseModel):
     __tablename__ = 'users'
 
-    id = Column(BIGINT, primary_key=True, index=True)
-    username = Column(String, nullable=False)
-    moodle_token = Column(String, nullable=False)
+    id = Column(BigInteger, primary_key=True, index=True)
+    username = Column(String)
+    moodle_token = Column(String)
 
     courses = relationship('Course', secondary=Users_Courses, backref='users', lazy='selectin',
                            cascade='all, delete')
@@ -170,11 +164,11 @@ class Discussion(BaseModel):
     __tablename__ = 'discussions'
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    text = Column(Text, nullable=False)
-    url = Column(String, nullable=False)
+    name = Column(String)
+    text = Column(Text)
+    url = Column(String)
 
-    course_id = Column(Integer, ForeignKey('courses.id'), nullable=False)
+    course_id = Column(Integer, ForeignKey('courses.id'))
     course = relationship('Course', back_populates='discussions')
 
     def __str__(self):

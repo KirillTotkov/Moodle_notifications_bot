@@ -21,8 +21,6 @@ async def main():
         tasks = await send_new_tasks_and_courses(user)
         all_tasks.update(tasks)
 
-    print(all_tasks)
-
     "Добавление новых заданий и обсуждений в БД"
     for task_discussion in all_tasks:
         await task_discussion.save()

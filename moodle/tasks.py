@@ -40,11 +40,11 @@ async def get_course_tasks(moodle_token: str, course: Course) -> list:
             if 'exception' in data:
                 return []
 
-            tasks = await _parse_tasks(data, course)
+            tasks = _parse_tasks(data, course)
             return tasks
 
 
-async def _parse_tasks(data: dict, course: Course) -> list[Task]:
+def _parse_tasks(data: dict, course: Course) -> list[Task]:
     tasks = []
     for section in data:
         for module in section['modules']:
@@ -53,21 +53,21 @@ async def _parse_tasks(data: dict, course: Course) -> list[Task]:
                     id=module['id'],
                     type=module['modplural'],
                     name=module['name'],
-                    description=await _parse_task_description(module),
-                    hyperlink=await _parse_task_hyperlink(module),
+                    description=_parse_task_description(module),
+                    hyperlink=_parse_task_hyperlink(module),
                     url=module.get('url'),
                     course=course,
                 )
             )
-    return tasks[1:]
+    return tasks
 
 
-async def _parse_task_hyperlink(task: dict) -> str:
+def _parse_task_hyperlink(task: dict) -> str:
     if "contents" in task and task["contents"]:
         return task['contents'][0]['fileurl'].replace('forcedownload=1', '')
 
 
-async def _parse_task_description(task: dict) -> str:
+def _parse_task_description(task: dict) -> str:
     if "description" in task:
         soup = BeautifulSoup(task['description'], 'html.parser')
         return soup.get_text(separator='\n')
