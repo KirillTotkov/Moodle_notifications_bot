@@ -4,10 +4,9 @@ from aiogram import executor
 from aiogram.utils.exceptions import BotBlocked
 
 from config import dp, scheduler, bot_logger, moodle_loger
-from bot.handlers import user as user_handlers
-from bot.handlers import admin as admin_handlers
+from handlers import user as user_handlers, admin as admin_handlers
 from db.models import User
-from bot.handlers.user import send_new_tasks_and_courses
+from handlers.user import send_new_tasks_and_courses
 
 
 @scheduler.scheduled_job('interval', seconds=1600, id='tasks')

@@ -3,6 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, \
     InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.dispatcher.filters import IDFilter
 
 from config import BOT_ADMIN_ID, scheduler
 from db.models import User, Course
@@ -28,16 +29,6 @@ class InlineKeyboard:
     admin.add(InlineKeyboardButton('Приостановить задачу', callback_data='pause_job'))
 
 
-def check_admin(func):
-    async def wrapper(message: types.Message):
-        if message.from_user.id != BOT_ADMIN_ID:
-            return None
-        await func(message)
-
-    return wrapper
-
-
-@check_admin
 async def delete_last_task(message: types.Message):
     """
     Для тестирования отправки сообщений.
@@ -45,10 +36,16 @@ async def delete_last_task(message: types.Message):
     """
     courses = await Course.get_all()
     markup = ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    markup.add(KeyboardButton('Назад в админ панель'))
     for course in courses:
         markup.add(KeyboardButton(course.name))
     await message.answer('Выберите курс', reply_markup=markup)
     await Admin.delete_last_task.set()
+
+
+async def bask_to_admin_panel(message: types.Message, state: FSMContext):
+    await message.answer('Вы вошли в админ панель', reply_markup=Keyboard.admin)
+    await state.finish()
 
 
 async def delete_last_task_set(message: types.Message, state: FSMContext):
@@ -59,7 +56,6 @@ async def delete_last_task_set(message: types.Message, state: FSMContext):
     await state.finish()
 
 
-@check_admin
 async def get_users(message: types.Message):
     "Отправляет список пользователей. Если их больше 10, то отправляет по 10 пользователей"
     users = await User.get_all()
@@ -68,12 +64,10 @@ async def get_users(message: types.Message):
         await message.answer('\n'.join([f'@{user.username}' for user in users[i:i + 10]]))
 
 
-@check_admin
 async def admin(message: types.Message):
     await message.answer('Вы вошли в админ панель', reply_markup=Keyboard.admin)
 
 
-@check_admin
 async def show_job(message: types.Message):
     job = scheduler.get_jobs()[0]
     message_text = f'<b>ID задачи</b>: <i>{job.id}</i>\n' \
@@ -117,18 +111,22 @@ async def pause_job(call: types.CallbackQuery):
     await call.answer()
 
 
-async def back(message: types.Message):
+async def back(message: types.Message, state: FSMContext):
     await message.answer('Вы вышли из админ панели', reply_markup=ReplyKeyboardRemove())
+    await state.finish()
 
 
 async def register_handlers(dp: Dispatcher):
-    dp.register_message_handler(admin, commands='admin')
-    dp.register_message_handler(show_job, text='Посмотреть задачу')
-    dp.register_callback_query_handler(change_time, text='change_time', state='*')
-    dp.register_message_handler(change_time_set, state=Admin.job_time)
-    dp.register_callback_query_handler(run_job, text='run_job', state='*')
-    dp.register_callback_query_handler(pause_job, text='pause_job', state='*')
-    dp.register_message_handler(back, text='Назад', state='*')
-    dp.register_message_handler(get_users, text='Посмотреть пользователей')
-    dp.register_message_handler(delete_last_task, text='Удалить последнее задание')
-    dp.register_message_handler(delete_last_task_set, state=Admin.delete_last_task)
+    dp.register_message_handler(admin, IDFilter(user_id=BOT_ADMIN_ID), commands='admin')
+    dp.register_message_handler(show_job, IDFilter(user_id=BOT_ADMIN_ID), text='Посмотреть задачу')
+    dp.register_callback_query_handler(change_time, IDFilter(user_id=BOT_ADMIN_ID), text='change_time', state='*')
+    dp.register_message_handler(change_time_set, IDFilter(user_id=BOT_ADMIN_ID), state=Admin.job_time)
+    dp.register_callback_query_handler(run_job, IDFilter(user_id=BOT_ADMIN_ID), text='run_job', state='*')
+    dp.register_callback_query_handler(pause_job, IDFilter(user_id=BOT_ADMIN_ID), text='pause_job', state='*')
+    dp.register_message_handler(back, IDFilter(user_id=BOT_ADMIN_ID), text='Назад', state='*')
+    dp.register_message_handler(get_users, IDFilter(user_id=BOT_ADMIN_ID), text='Посмотреть пользователей')
+    dp.register_message_handler(delete_last_task, IDFilter(user_id=BOT_ADMIN_ID), text='Удалить последнее задание')
+    dp.register_message_handler(bask_to_admin_panel, IDFilter(user_id=BOT_ADMIN_ID), text='Назад в админ панель',
+                                state='*')
+    dp.register_message_handler(delete_last_task_set, IDFilter(user_id=BOT_ADMIN_ID), state=Admin.delete_last_task)
+
