@@ -1,10 +1,10 @@
 from sqlite3 import IntegrityError
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint, Text, BigInteger
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, PrimaryKeyConstraint, \
+    Text, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.future import select
 
-from config import db_loger
 from db.session import Base, async_session
 
 Users_Courses = Table(
@@ -46,7 +46,6 @@ class BaseModel(Base):
                 await session.commit()
             except IntegrityError as e:
                 await session.rollback()
-                db_loger.error(e)
                 print(e)
 
     async def delete(self):
@@ -128,6 +127,10 @@ class User(BaseModel):
             for course in courses:
                 await session.delete(course)
             await session.commit()
+
+    async def delete(self):
+        await self.remove_courses()
+        await super().delete()
 
     def __repr__(self):
         return f'<{self.__class__.__name__} id={self.id}, username=@{self.username}>'

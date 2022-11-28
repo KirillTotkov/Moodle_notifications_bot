@@ -40,7 +40,7 @@ set_settings_logger(moodle_loger, 'moodle')
 scheduler_loger = logging.getLogger('apscheduler.scheduler')
 set_settings_logger(scheduler_loger, 'scheduler')
 
-db_loger = logging.getLogger('db')
+db_loger = logging.getLogger('sqlalchemy.engine')
 set_settings_logger(db_loger, 'db')
 
 headers = {

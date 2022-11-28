@@ -117,16 +117,15 @@ async def back(message: types.Message, state: FSMContext):
 
 
 async def register_handlers(dp: Dispatcher):
+    dp.register_message_handler(back, IDFilter(user_id=BOT_ADMIN_ID), text='Назад', state='*')
     dp.register_message_handler(admin, IDFilter(user_id=BOT_ADMIN_ID), commands='admin')
     dp.register_message_handler(show_job, IDFilter(user_id=BOT_ADMIN_ID), text='Посмотреть задачу')
     dp.register_callback_query_handler(change_time, IDFilter(user_id=BOT_ADMIN_ID), text='change_time', state='*')
     dp.register_message_handler(change_time_set, IDFilter(user_id=BOT_ADMIN_ID), state=Admin.job_time)
     dp.register_callback_query_handler(run_job, IDFilter(user_id=BOT_ADMIN_ID), text='run_job', state='*')
     dp.register_callback_query_handler(pause_job, IDFilter(user_id=BOT_ADMIN_ID), text='pause_job', state='*')
-    dp.register_message_handler(back, IDFilter(user_id=BOT_ADMIN_ID), text='Назад', state='*')
     dp.register_message_handler(get_users, IDFilter(user_id=BOT_ADMIN_ID), text='Посмотреть пользователей')
     dp.register_message_handler(delete_last_task, IDFilter(user_id=BOT_ADMIN_ID), text='Удалить последнее задание')
     dp.register_message_handler(bask_to_admin_panel, IDFilter(user_id=BOT_ADMIN_ID), text='Назад в админ панель',
                                 state='*')
     dp.register_message_handler(delete_last_task_set, IDFilter(user_id=BOT_ADMIN_ID), state=Admin.delete_last_task)
-

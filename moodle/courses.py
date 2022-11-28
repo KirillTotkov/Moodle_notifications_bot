@@ -4,6 +4,18 @@ from config import MOODLE_HOST, headers
 from db.models import Course, User
 
 
+class TokenException(Exception):
+    """
+    Исключение, возникающее, когда токен недействителен
+    """
+
+    def __init__(self, message):
+        self.message = message
+        
+    def __str__(self):
+        return self.message
+
+
 async def set_courses_forum_id(moodle_token: str, courses: set[Course]) -> list[Course]:
     for course in courses:
         course.forum_id = await get_forum_id_by_course(moodle_token, course.id)
@@ -23,7 +35,9 @@ async def get_forum_id_by_course(moodle_token: str, course_id: int) -> int:
         async with session.get(url, params=params, headers=headers) as response:
             data = await response.json()
             if 'exception' in data:
-                raise Exception(data['message'], data.get('debuginfo'), course_id)
+                if data['errorcode'] == 'invalidtoken':
+                    raise TokenException(data['message'])
+                raise Exception(data['message'], data.get('debuginfo'))
             return data[0]['id']
 
 
@@ -33,14 +47,14 @@ async def get_new_courses(user: User) -> list[Course]:
     course_from_db = user.courses
     new_courses = set(course_from_moodle) ^ set(course_from_db)
 
-    "Для новых курсов сохраняем форума"
+    "Для новых курсов сохраняем id форума"
     if new_courses:
         new_courses = await set_courses_forum_id(user.moodle_token, new_courses)
         return new_courses
     return []
 
 
-async def get_courses_from_moodle(moodle_token) -> list[Course]:
+async def get_courses_from_moodle(moodle_token: str) -> list[Course]:
     url = f'{MOODLE_HOST}/webservice/rest/server.php'
     params = {
         'wstoken': moodle_token,
@@ -52,7 +66,10 @@ async def get_courses_from_moodle(moodle_token) -> list[Course]:
         async with session.get(url, params=params) as response:
             data = await response.json()
             if 'exception' in data:
+                if data['errorcode'] == 'invalidtoken':
+                    raise TokenException(data['message'])
                 raise Exception(data['message'], data.get('debuginfo'))
+
             courses = [
                 Course(
                     id=course['id'],

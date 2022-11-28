@@ -3,10 +3,11 @@ import time
 from aiogram import executor
 from aiogram.utils.exceptions import BotBlocked
 
-from config import dp, scheduler, bot_logger, moodle_loger
+from config import dp, bot, scheduler, bot_logger, moodle_loger, BOT_ADMIN_ID
 from handlers import user as user_handlers, admin as admin_handlers
 from db.models import User
 from handlers.user import send_new_tasks_and_courses
+from moodle.courses import TokenException
 
 
 @scheduler.scheduled_job('interval', seconds=1600, id='tasks')
@@ -22,9 +23,14 @@ async def main():
             tasks = await send_new_tasks_and_courses(user)
             all_tasks.update(tasks)
         except BotBlocked:
-            bot_logger.info(f"Бот заблокирован пользователем {user}")
-            await user.remove_courses()
+            bot_logger.exception(f"Бот заблокирован пользователем {user}")
             await user.delete()
+        except TokenException:
+            await bot.send_message(user.id, f'Произошла ошибка. \n'
+                                            f'Вам необходимо заново авторизоваться в боте. \n'
+                                            f'<b>Для этого введите команду /start</b>', parse_mode='HTML')
+            await user.delete()
+            await bot.send_message(BOT_ADMIN_ID, f'У пользователя {user.id} - @{user.username} недействительный токен')
 
     "Добавление новых заданий и обсуждений в БД"
     for task_discussion in all_tasks:
@@ -32,8 +38,6 @@ async def main():
 
     moodle_loger.info(f'Количество новых заданий: {len(all_tasks)}')
     moodle_loger.info(f'Время получения и отправки заданий: {time.time() - start} секунд')
-
-    print(f'Time: {time.time() - start}')
 
 
 async def on_startup(dispatcher):

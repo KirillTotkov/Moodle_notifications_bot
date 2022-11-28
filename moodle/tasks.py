@@ -3,7 +3,7 @@ from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
 from config import MOODLE_HOST, headers
-from moodle.courses import Course
+from moodle.courses import Course, TokenException
 from db.models import Task
 
 
@@ -38,7 +38,9 @@ async def get_course_tasks(moodle_token: str, course: Course) -> list:
         async with session.get(url, params=params, headers=headers) as response:
             data = await response.json()
             if 'exception' in data:
-                return []
+                if data['errorcode'] == 'invalidtoken':
+                    raise TokenException(data['message'])
+                raise Exception(data['message'], data.get('debuginfo'))
 
             tasks = _parse_tasks(data, course)
             return tasks

@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 
 from config import MOODLE_HOST, headers
 from db.models import Discussion, Course
+from moodle.courses import TokenException
 
 
 async def get_new_discussions(moodle_token: str, course: Course) -> list[Discussion]:
@@ -26,7 +27,10 @@ async def get_discussions(moodle_token: str, course: Course) -> list:
         async with session.get(url, params=params, headers=headers) as response:
             data = await response.json()
             if 'exception' in data:
-                raise Exception(data['message'], data.get('debuginfo'), course)
+                if data['errorcode'] == 'invalidtoken':
+                    raise TokenException(data['message'])
+                raise Exception(data['message'], data.get('debuginfo'))
+
             discussions = _parse_discussions(data, course)
             return discussions
 
